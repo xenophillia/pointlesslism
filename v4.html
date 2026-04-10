@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixel Sort v4</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #0e0e10;
+      overflow: auto;
+    }
+
+    #upload {
+      display: none;
+    }
+
+    .upload-btn {
+      width: 68px;
+      height: 68px;
+      border: 2px solid #f3f3f3;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      z-index: 2;
+      transition: transform 150ms ease, opacity 150ms ease;
+    }
+
+    .upload-btn::before,
+    .upload-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 26px;
+      height: 2px;
+      background: #f3f3f3;
+      transform: translate(-50%, -50%);
+    }
+
+    .upload-btn::after {
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
+
+    .upload-btn:hover {
+      transform: scale(1.06);
+    }
+
+    #canvas {
+      display: none;
+      image-rendering: pixelated;
+      max-width: none;
+      max-height: none;
+    }
+
+    body.has-image #canvas {
+      display: block;
+    }
+
+    body.has-image .upload-btn {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <input id="upload" type="file" accept="image/*" />
+  <label class="upload-btn" for="upload" aria-label="Upload"></label>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const upload = document.getElementById("upload");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    function brightnessOf(r, g, b, a) {
+      return (0.2126 * r + 0.7152 * g + 0.0722 * b) * (a / 255);
+    }
+
+    upload.addEventListener("change", () => {
+      const file = upload.files?.[0];
+      if (!file) return;
+
+      const imageUrl = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = () => {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        const pixelCount = width * height;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const pixels = new Array(pixelCount);
+
+        for (let i = 0, p = 0; p < pixelCount; i += 4, p += 1) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+          pixels[p] = [r, g, b, a, brightnessOf(r, g, b, a)];
+        }
+
+        pixels.sort((left, right) => right[4] - left[4]);
+
+        const seen = new Set();
+        const white = [255, 255, 255, 255];
+
+        for (let p = 0, i = 0; p < pixelCount; p += 1, i += 4) {
+          const px = pixels[p];
+          const key = `${px[0]},${px[1]},${px[2]},${px[3]}`;
+          const out = seen.has(key) ? white : px;
+          seen.add(key);
+          data[i] = out[0];
+          data[i + 1] = out[1];
+          data[i + 2] = out[2];
+          data[i + 3] = out[3];
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        document.body.classList.add("has-image");
+        upload.value = "";
+        URL.revokeObjectURL(imageUrl);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(imageUrl);
+      };
+
+      img.src = imageUrl;
+    });
+  </script>
+</body>
+</html>

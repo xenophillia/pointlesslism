@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixel Sort v6</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #ffffff;
+      overflow: auto;
+    }
+
+    #upload {
+      display: none;
+    }
+
+    .upload-btn {
+      width: 68px;
+      height: 68px;
+      border: 2px solid #111111;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      z-index: 2;
+      transition: transform 150ms ease, opacity 150ms ease;
+    }
+
+    .upload-btn::before,
+    .upload-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 26px;
+      height: 2px;
+      background: #111111;
+      transform: translate(-50%, -50%);
+    }
+
+    .upload-btn::after {
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
+
+    .upload-btn:hover {
+      transform: scale(1.06);
+    }
+
+    #canvas {
+      display: none;
+      image-rendering: pixelated;
+      max-width: none;
+      max-height: none;
+    }
+
+    body.has-image #canvas {
+      display: block;
+    }
+
+    body.has-image .upload-btn {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <input id="upload" type="file" accept="image/*" />
+  <label class="upload-btn" for="upload" aria-label="Upload"></label>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const MIN_DISPLACEMENT = 1;
+    const MAX_DISPLACEMENT = 20;
+    const PRE_BLUR_PX = 30;
+    const MULTIPLY_CHANCE = 0.8;
+    const MIN_COPIES = 2;
+    const MAX_COPIES = 10;
+    const CORE_RADIUS_MIN = 1;
+    const CORE_RADIUS_MAX = 12;
+    const EDGE_RADIUS_MIN = 12;
+    const EDGE_RADIUS_MAX = 30;
+    const MAX_CLUSTER_HALF_HEIGHT = 5;
+
+    const upload = document.getElementById("upload");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    const sourceCanvas = document.createElement("canvas");
+    const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const blurCanvas = document.createElement("canvas");
+    const blurCtx = blurCanvas.getContext("2d");
+
+    function brightnessOf(r, g, b, a) {
+      return (0.2126 * r + 0.7152 * g + 0.0722 * b) * (a / 255);
+    }
+
+    function saturationOf(r, g, b) {
+      const rn = r / 255;
+      const gn = g / 255;
+      const bn = b / 255;
+      const max = Math.max(rn, gn, bn);
+      const min = Math.min(rn, gn, bn);
+      if (max === 0) return 0;
+      return (max - min) / max;
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(min + Math.random() * (max - min + 1));
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function buildSortedPixels(data, width, height) {
+      const pixelCount = width * height;
+      const pixels = new Array(pixelCount);
+      for (let i = 0, p = 0; p < pixelCount; i += 4, p += 1) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        pixels[p] = [r, g, b, a, brightnessOf(r, g, b, a), saturationOf(r, g, b)];
+      }
+
+      // First pass: light pixels to top rows, dark pixels to bottom rows.
+      pixels.sort((left, right) => right[4] - left[4]);
+
+      // Second pass within each brightness row: low saturation left, high saturation right.
+      for (let y = 0; y < height; y += 1) {
+        const rowStart = y * width;
+        const rowEnd = rowStart + width;
+        const row = pixels.slice(rowStart, rowEnd);
+        row.sort((left, right) => left[5] - right[5]);
+        for (let x = 0; x < width; x += 1) {
+          pixels[rowStart + x] = row[x];
+        }
+      }
+
+      return pixels;
+    }
+
+    function saveCanvasImage() {
+      if (!canvas.width || !canvas.height) return;
+
+      const link = document.createElement("a");
+      link.download = `v6-${Date.now()}.png`;
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    }
+
+    function jitterPoint(cx, cy, minRadius, maxRadius, maxVerticalOffset, width, height) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = minRadius + Math.random() * (maxRadius - minRadius);
+      const x = clamp(Math.round(cx + Math.cos(angle) * radius), 0, width - 1);
+      const rawY = Math.round(cy + Math.sin(angle) * radius);
+      const minY = cy - maxVerticalOffset;
+      const maxY = cy + maxVerticalOffset;
+      const y = clamp(clamp(rawY, minY, maxY), 0, height - 1);
+      return [x, y];
+    }
+
+    function drawPixel(x, y, r, g, b, alpha) {
+      if (alpha <= 0) return;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+
+    function renderDisplacedPixels(sortedPixels, width, height) {
+      const pixelCount = width * height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      for (let p = 0; p < pixelCount; p += 1) {
+        const px = sortedPixels[p];
+        const baseAlpha = px[3] / 255;
+        if (baseAlpha <= 0) continue;
+
+        const baseX = p % width;
+        const baseY = Math.floor(p / width);
+        const angle = Math.random() * Math.PI * 2;
+        const distance = MIN_DISPLACEMENT + Math.random() * (MAX_DISPLACEMENT - MIN_DISPLACEMENT);
+        const centerX = clamp(Math.round(baseX + Math.cos(angle) * distance), 0, width - 1);
+        const centerY = clamp(Math.round(baseY + Math.sin(angle) * distance), 0, height - 1);
+
+        drawPixel(centerX, centerY, px[0], px[1], px[2], baseAlpha);
+
+        const shouldMultiply = Math.random() < MULTIPLY_CHANCE;
+        if (!shouldMultiply) continue;
+
+        const copies = randomInt(MIN_COPIES, MAX_COPIES);
+
+        for (let i = 0; i < copies; i += 1) {
+          const [x, y] = jitterPoint(
+            centerX,
+            centerY,
+            CORE_RADIUS_MIN,
+            CORE_RADIUS_MAX,
+            MAX_CLUSTER_HALF_HEIGHT,
+            width,
+            height
+          );
+          drawPixel(x, y, px[0], px[1], px[2], baseAlpha);
+        }
+
+        const edgeCopies = Math.max(1, Math.round(copies * (0.6 + Math.random() * 0.8)));
+        for (let i = 0; i < edgeCopies; i += 1) {
+          const [x, y] = jitterPoint(
+            centerX,
+            centerY,
+            EDGE_RADIUS_MIN,
+            EDGE_RADIUS_MAX,
+            MAX_CLUSTER_HALF_HEIGHT,
+            width,
+            height
+          );
+          const edgeAlpha = baseAlpha * (0.18 + Math.random() * 0.35);
+          drawPixel(x, y, px[0], px[1], px[2], edgeAlpha);
+        }
+      }
+
+    }
+
+    upload.addEventListener("change", () => {
+      const file = upload.files?.[0];
+      if (!file) return;
+
+      const imageUrl = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = () => {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        const pixelCount = width * height;
+
+        canvas.width = width;
+        canvas.height = height;
+        sourceCanvas.width = width;
+        sourceCanvas.height = height;
+        blurCanvas.width = width;
+        blurCanvas.height = height;
+
+        blurCtx.clearRect(0, 0, width, height);
+        blurCtx.filter = `blur(${PRE_BLUR_PX}px)`;
+        blurCtx.drawImage(img, 0, 0, width, height);
+        blurCtx.filter = "none";
+
+        sourceCtx.clearRect(0, 0, width, height);
+        sourceCtx.drawImage(blurCanvas, 0, 0, width, height);
+
+        const imageData = sourceCtx.getImageData(0, 0, width, height);
+        const sortedPixels = buildSortedPixels(imageData.data, width, height);
+
+        renderDisplacedPixels(sortedPixels, width, height);
+
+        document.body.classList.add("has-image");
+        upload.value = "";
+        URL.revokeObjectURL(imageUrl);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(imageUrl);
+      };
+
+      img.src = imageUrl;
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.repeat) return;
+      if (event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      saveCanvasImage();
+    });
+  </script>
+</body>
+</html>
