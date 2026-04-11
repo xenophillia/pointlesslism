@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>same thing?</title>
+  <title>Pointlesslism</title>
   <link rel="icon" type="image/png" href="favi.png" />
   <style>
     :root {
@@ -30,7 +30,7 @@
     .upload-btn {
       width: 68px;
       height: 68px;
-      border: 2px solid #111111;
+      border: 1px solid #111111;
       border-radius: 999px;
       background: transparent;
       cursor: pointer;
@@ -48,7 +48,7 @@
       left: 50%;
       top: 50%;
       width: 26px;
-      height: 2px;
+      height: 1px;
       background: #111111;
       transform: translate(-50%, -50%);
     }
@@ -64,7 +64,7 @@
     .processing-indicator {
       width: 68px;
       height: 68px;
-      border: 2px solid #111111;
+      border: 1px solid #111111;
       border-radius: 999px;
       background: transparent;
       position: fixed;
@@ -84,6 +84,43 @@
       height: 0%;
       background: #111111;
       transition: height 110ms linear;
+    }
+
+    .runner-text {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 4;
+      color: #111111;
+      font-family: "Times New Roman", Georgia, serif;
+      font-size: clamp(7px, 1.1vw, 12px);
+      letter-spacing: 0.03em;
+      line-height: 1;
+      white-space: nowrap;
+      user-select: none;
+      pointer-events: none;
+      opacity: 0.95;
+      transform: translateX(calc(-100% - 32px));
+      will-change: transform, top;
+    }
+
+    .runner-text a {
+      color: inherit;
+      text-decoration: underline;
+      pointer-events: auto;
+    }
+
+    .runner-cursive {
+      font-family: "Brush Script MT", "Segoe Script", "Snell Roundhand", cursive;
+    }
+
+    @keyframes runner-across {
+      from {
+        transform: translateX(calc(-100% - 32px));
+      }
+      to {
+        transform: translateX(calc(100vw + 32px));
+      }
     }
 
     #canvas {
@@ -124,6 +161,12 @@
   </style>
 </head>
 <body>
+  <div class="runner-text" id="runner-text">
+    <a href="https://instagram.com/ksundelle" target="_blank" rel="noopener noreferrer">who</a> did the same thing?
+  </div>
+  <div class="runner-text" id="runner-text-2">
+    call this style <span class="runner-cursive">Pointlesslism</span>
+  </div>
   <input id="upload" type="file" accept="image/*" />
   <label class="upload-btn" for="upload" aria-label="Upload"></label>
   <div class="processing-indicator" aria-hidden="true">
@@ -145,13 +188,31 @@
     const EDGE_RADIUS_MIN = 12;
     const EDGE_RADIUS_MAX = 30;
     const MAX_CLUSTER_HALF_HEIGHT = 5;
+    const RUNNER_MARGIN_PX = 8;
+    const PRIMARY_RUNNER_DURATION_MS = 18000;
+    const SECONDARY_RUNNER_DURATION_MS = 21000;
+    const PRIMARY_RUNNER_MIN_DELAY_MS = 4000;
+    const PRIMARY_RUNNER_MAX_DELAY_MS = 7000;
+    const SECONDARY_RUNNER_MIN_DELAY_MS = 8000;
+    const SECONDARY_RUNNER_MAX_DELAY_MS = 14000;
+    const PRIMARY_RUNNER_START_DELAY_MS = 6000;
+    const SECONDARY_RUNNER_START_DELAY_MS = 20000;
 
     const upload = document.getElementById("upload");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     const processingFill = document.querySelector(".processing-fill");
     const resultImage = document.getElementById("result-image");
+    const runnerTexts = Array.from(document.querySelectorAll(".runner-text"));
+    const runnerPrimary = document.getElementById("runner-text");
+    const runnerSecondary = document.getElementById("runner-text-2");
     let resultImageUrl = "";
+    const runnerPausedState = new WeakMap();
+    const runnerTimeoutIds = new WeakMap();
+
+    for (const runner of runnerTexts) {
+      runnerPausedState.set(runner, false);
+    }
 
     const sourceCanvas = document.createElement("canvas");
     const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
@@ -210,6 +271,89 @@
         resultImageUrl = URL.createObjectURL(blob);
         resultImage.src = resultImageUrl;
       }, "image/png");
+    }
+
+    function isRunnerPaused(runner) {
+      return runnerPausedState.get(runner) === true;
+    }
+
+    function randomRunnerTop(runner) {
+      if (!runner) return RUNNER_MARGIN_PX;
+      const available = window.innerHeight - runner.offsetHeight - RUNNER_MARGIN_PX * 2;
+      if (available <= 0) return RUNNER_MARGIN_PX;
+      return RUNNER_MARGIN_PX + Math.floor(Math.random() * available);
+    }
+
+    function runnerDurationMs(runner) {
+      return runner === runnerSecondary ? SECONDARY_RUNNER_DURATION_MS : PRIMARY_RUNNER_DURATION_MS;
+    }
+
+    function runSentenceAcross(runner) {
+      if (!runner || isRunnerPaused(runner)) return;
+      runner.style.top = `${randomRunnerTop(runner)}px`;
+      runner.style.animation = "none";
+      // Force reflow so each run reliably restarts the animation.
+      runner.offsetWidth;
+      runner.style.animation = `runner-across ${runnerDurationMs(runner)}ms linear`;
+      runner.style.animationPlayState = "running";
+    }
+
+    function setRunnerPaused(runner, paused) {
+      if (!runner) return;
+      runnerPausedState.set(runner, paused);
+      runner.style.animationPlayState = paused ? "paused" : "running";
+    }
+
+    function isPointerOverRunner(clientX, clientY, runner) {
+      if (!runner) return false;
+      const rect = runner.getBoundingClientRect();
+      return (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      );
+    }
+
+    function randomRunnerDelay(runner) {
+      const minDelay = runner === runnerSecondary ? SECONDARY_RUNNER_MIN_DELAY_MS : PRIMARY_RUNNER_MIN_DELAY_MS;
+      const maxDelay = runner === runnerSecondary ? SECONDARY_RUNNER_MAX_DELAY_MS : PRIMARY_RUNNER_MAX_DELAY_MS;
+      const span = maxDelay - minDelay;
+      return minDelay + Math.floor(Math.random() * (span + 1));
+    }
+
+    function clearRunnerSchedule(runner) {
+      const timeoutId = runnerTimeoutIds.get(runner);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      runnerTimeoutIds.delete(runner);
+    }
+
+    function clearAllRunnerSchedules() {
+      for (const runner of runnerTexts) {
+        clearRunnerSchedule(runner);
+      }
+    }
+
+    function scheduleRunnerLoop(runner, initialDelayMs) {
+      if (!runner) return;
+
+      const step = () => {
+        runSentenceAcross(runner);
+        const nextDelay = runnerDurationMs(runner) + randomRunnerDelay(runner);
+        const nextId = window.setTimeout(step, nextDelay);
+        runnerTimeoutIds.set(runner, nextId);
+      };
+
+      const firstId = window.setTimeout(step, initialDelayMs);
+      runnerTimeoutIds.set(runner, firstId);
+    }
+
+    function startSentenceRunner() {
+      clearAllRunnerSchedules();
+      scheduleRunnerLoop(runnerPrimary, PRIMARY_RUNNER_START_DELAY_MS);
+      scheduleRunnerLoop(runnerSecondary, SECONDARY_RUNNER_START_DELAY_MS);
     }
 
     function buildSortedPixels(data, width, height) {
@@ -408,7 +552,30 @@
 
     window.addEventListener("beforeunload", () => {
       if (resultImageUrl) URL.revokeObjectURL(resultImageUrl);
+      clearAllRunnerSchedules();
     });
+
+    window.addEventListener("mousemove", (event) => {
+      for (const runner of runnerTexts) {
+        const hovering = isPointerOverRunner(event.clientX, event.clientY, runner);
+        const paused = isRunnerPaused(runner);
+        if (hovering && !paused) {
+          setRunnerPaused(runner, true);
+        } else if (!hovering && paused) {
+          setRunnerPaused(runner, false);
+        }
+      }
+    });
+
+    window.addEventListener("mouseleave", () => {
+      for (const runner of runnerTexts) {
+        if (isRunnerPaused(runner)) {
+          setRunnerPaused(runner, false);
+        }
+      }
+    });
+
+    startSentenceRunner();
   </script>
 </body>
 </html>
