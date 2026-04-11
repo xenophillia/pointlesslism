@@ -70,7 +70,7 @@
       position: fixed;
       inset: 0;
       margin: auto;
-      z-index: 3;
+      z-index: 1;
       overflow: hidden;
       display: none;
       pointer-events: none;
@@ -127,13 +127,19 @@
     #canvas {
       display: none;
       image-rendering: pixelated;
-      max-width: none;
-      max-height: none;
+      position: relative;
+      z-index: 2;
+      max-width: 100vw;
+      max-height: 100vh;
+      width: auto;
+      height: auto;
     }
 
     #result-image {
       display: none;
       image-rendering: pixelated;
+      position: relative;
+      z-index: 2;
       max-width: 100vw;
       max-height: 100vh;
       width: auto;
@@ -158,6 +164,14 @@
 
     body.is-processing .processing-indicator {
       display: block;
+    }
+
+    body.is-processing #canvas {
+      display: block;
+    }
+
+    body.is-processing #result-image {
+      display: none;
     }
   </style>
 </head>
@@ -198,6 +212,9 @@
     const SECONDARY_RUNNER_MAX_DELAY_MS = 14000;
     const PRIMARY_RUNNER_START_DELAY_MS = 10000;
     const SECONDARY_RUNNER_START_DELAY_MS = 20000;
+    const RUNNER_FRONT_Z_INDEX = 4;
+    const RUNNER_BEHIND_IMAGE_Z_INDEX = 1;
+    const SECONDARY_RUNNER_BEHIND_IMAGE_CHANCE = 0.5;
 
     const upload = document.getElementById("upload");
     const canvas = document.getElementById("canvas");
@@ -219,6 +236,12 @@
     const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
     const blurCanvas = document.createElement("canvas");
     const blurCtx = blurCanvas.getContext("2d");
+    const previewCanvas = document.createElement("canvas");
+    const previewCtx = previewCanvas.getContext("2d");
+    const renderCanvas = document.createElement("canvas");
+    const renderCtx = renderCanvas.getContext("2d");
+    const exportCanvas = document.createElement("canvas");
+    const exportCtx = exportCanvas.getContext("2d");
 
     function brightnessOf(r, g, b, a) {
       return (0.2126 * r + 0.7152 * g + 0.0722 * b) * (a / 255);
@@ -255,6 +278,7 @@
     function startProcessing() {
       document.body.classList.add("is-processing");
       setProcessingProgress(0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     function finishProcessing() {
@@ -265,13 +289,29 @@
       }, 130);
     }
 
+    function canvasToBlobWithWhiteBackground(source, onBlob) {
+      if (!source || typeof onBlob !== "function") return;
+      if (!exportCtx) {
+        source.toBlob(onBlob, "image/png");
+        return;
+      }
+
+      exportCanvas.width = source.width;
+      exportCanvas.height = source.height;
+      exportCtx.clearRect(0, 0, source.width, source.height);
+      exportCtx.fillStyle = "#ffffff";
+      exportCtx.fillRect(0, 0, source.width, source.height);
+      exportCtx.drawImage(source, 0, 0);
+      exportCanvas.toBlob(onBlob, "image/png");
+    }
+
     function updateResultImageFromCanvas() {
-      canvas.toBlob((blob) => {
+      canvasToBlobWithWhiteBackground(canvas, (blob) => {
         if (!blob || !resultImage) return;
         if (resultImageUrl) URL.revokeObjectURL(resultImageUrl);
         resultImageUrl = URL.createObjectURL(blob);
         resultImage.src = resultImageUrl;
-      }, "image/png");
+      });
     }
 
     function isRunnerPaused(runner) {
@@ -289,8 +329,24 @@
       return runner === runnerSecondary ? SECONDARY_RUNNER_DURATION_MS : PRIMARY_RUNNER_DURATION_MS;
     }
 
+    function isImageLayerVisible() {
+      return document.body.classList.contains("has-image") || document.body.classList.contains("is-processing");
+    }
+
+    function updateRunnerDepthForRun(runner) {
+      if (!runner) return;
+      if (runner !== runnerSecondary || !isImageLayerVisible()) {
+        runner.style.zIndex = String(RUNNER_FRONT_Z_INDEX);
+        return;
+      }
+
+      const shouldRunBehind = Math.random() < SECONDARY_RUNNER_BEHIND_IMAGE_CHANCE;
+      runner.style.zIndex = String(shouldRunBehind ? RUNNER_BEHIND_IMAGE_Z_INDEX : RUNNER_FRONT_Z_INDEX);
+    }
+
     function runSentenceAcross(runner) {
       if (!runner || isRunnerPaused(runner)) return;
+      updateRunnerDepthForRun(runner);
       runner.style.top = `${randomRunnerTop(runner)}px`;
       runner.style.animation = "none";
       // Force reflow so each run reliably restarts the animation.
@@ -391,13 +447,13 @@
       const link = document.createElement("a");
       link.download = `v6-${Date.now()}.png`;
 
-      canvas.toBlob((blob) => {
+      canvasToBlobWithWhiteBackground(canvas, (blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         link.href = url;
         link.click();
         URL.revokeObjectURL(url);
-      }, "image/png");
+      });
     }
 
     function jitterPoint(cx, cy, minRadius, maxRadius, maxVerticalOffset, width, height) {
@@ -411,17 +467,32 @@
       return [x, y];
     }
 
-    function drawPixel(x, y, r, g, b, alpha) {
+    function drawLiveComposite(width, height) {
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.globalAlpha = 1;
+      ctx.drawImage(previewCanvas, 0, 0, width, height);
+      ctx.drawImage(renderCanvas, 0, 0, width, height);
+    }
+
+    function drawFinalComposite(width, height) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(renderCanvas, 0, 0, width, height);
+    }
+
+    function drawPixel(targetCtx, x, y, r, g, b, alpha) {
       if (alpha <= 0) return;
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      ctx.fillRect(x, y, 1, 1);
+      targetCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      targetCtx.fillRect(x, y, 1, 1);
     }
 
     async function renderDisplacedPixels(sortedPixels, width, height, onProgress = () => {}) {
       const pixelCount = width * height;
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, width, height);
+      renderCtx.clearRect(0, 0, width, height);
+      drawLiveComposite(width, height);
 
       const chunkSize = Math.max(3500, Math.floor(pixelCount / 120));
       onProgress(0);
@@ -441,7 +512,7 @@
           const centerX = clamp(Math.round(baseX + Math.cos(angle) * distance), 0, width - 1);
           const centerY = clamp(Math.round(baseY + Math.sin(angle) * distance), 0, height - 1);
 
-          drawPixel(centerX, centerY, px[0], px[1], px[2], baseAlpha);
+          drawPixel(renderCtx, centerX, centerY, px[0], px[1], px[2], baseAlpha);
 
           const shouldMultiply = Math.random() < MULTIPLY_CHANCE;
           if (!shouldMultiply) continue;
@@ -449,7 +520,7 @@
           const copies = randomInt(MIN_COPIES, MAX_COPIES);
 
           for (let i = 0; i < copies; i += 1) {
-            const [x, y] = jitterPoint(
+            const [jx, jy] = jitterPoint(
               centerX,
               centerY,
               CORE_RADIUS_MIN,
@@ -458,12 +529,12 @@
               width,
               height
             );
-            drawPixel(x, y, px[0], px[1], px[2], baseAlpha);
+            drawPixel(renderCtx, jx, jy, px[0], px[1], px[2], baseAlpha);
           }
 
           const edgeCopies = Math.max(1, Math.round(copies * (0.6 + Math.random() * 0.8)));
           for (let i = 0; i < edgeCopies; i += 1) {
-            const [x, y] = jitterPoint(
+            const [jx, jy] = jitterPoint(
               centerX,
               centerY,
               EDGE_RADIUS_MIN,
@@ -473,13 +544,17 @@
               height
             );
             const edgeAlpha = baseAlpha * (0.18 + Math.random() * 0.35);
-            drawPixel(x, y, px[0], px[1], px[2], edgeAlpha);
+            drawPixel(renderCtx, jx, jy, px[0], px[1], px[2], edgeAlpha);
           }
         }
 
-        onProgress(end / pixelCount);
+        const renderProgress = end / pixelCount;
+        drawLiveComposite(width, height);
+        onProgress(renderProgress);
         if (end < pixelCount) await nextFrame();
       }
+
+      drawFinalComposite(width, height);
     }
 
     upload.addEventListener("change", () => {
@@ -506,6 +581,15 @@
           sourceCanvas.height = height;
           blurCanvas.width = width;
           blurCanvas.height = height;
+          previewCanvas.width = width;
+          previewCanvas.height = height;
+          renderCanvas.width = width;
+          renderCanvas.height = height;
+
+          previewCtx.clearRect(0, 0, width, height);
+          previewCtx.drawImage(img, 0, 0, width, height);
+          renderCtx.clearRect(0, 0, width, height);
+          drawLiveComposite(width, height);
           setProcessingProgress(0.2);
 
           blurCtx.clearRect(0, 0, width, height);
