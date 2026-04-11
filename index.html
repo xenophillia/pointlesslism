@@ -93,7 +93,7 @@
       z-index: 4;
       color: #111111;
       font-family: "Times New Roman", Georgia, serif;
-      font-size: clamp(7px, 1.1vw, 12px);
+      font-size: clamp(10.5px, 1.65vw, 18px);
       letter-spacing: 0.03em;
       line-height: 1;
       white-space: nowrap;
@@ -111,7 +111,8 @@
     }
 
     .runner-cursive {
-      font-family: "Brush Script MT", "Segoe Script", "Snell Roundhand", cursive;
+      font-family: inherit;
+      font-style: italic;
     }
 
     @keyframes runner-across {
@@ -195,7 +196,7 @@
     const PRIMARY_RUNNER_MAX_DELAY_MS = 7000;
     const SECONDARY_RUNNER_MIN_DELAY_MS = 8000;
     const SECONDARY_RUNNER_MAX_DELAY_MS = 14000;
-    const PRIMARY_RUNNER_START_DELAY_MS = 6000;
+    const PRIMARY_RUNNER_START_DELAY_MS = 10000;
     const SECONDARY_RUNNER_START_DELAY_MS = 20000;
 
     const upload = document.getElementById("upload");
