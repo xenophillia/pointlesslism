@@ -8,6 +8,8 @@
   <style>
     :root {
       color-scheme: dark;
+      --page-bg: #000000;
+      --page-fg: #ffffff;
     }
 
     * {
@@ -19,8 +21,15 @@
       min-height: 100vh;
       display: grid;
       place-items: center;
-      background: #ffffff;
+      background: var(--page-bg);
+      color: var(--page-fg);
       overflow: auto;
+    }
+
+    body.bg-white {
+      color-scheme: light;
+      --page-bg: #ffffff;
+      --page-fg: #000000;
     }
 
     #upload {
@@ -30,7 +39,7 @@
     .upload-btn {
       width: 68px;
       height: 68px;
-      border: 1px solid #111111;
+      border: 1px solid var(--page-fg);
       border-radius: 999px;
       background: transparent;
       cursor: pointer;
@@ -49,7 +58,7 @@
       top: 50%;
       width: 26px;
       height: 1px;
-      background: #111111;
+      background: var(--page-fg);
       transform: translate(-50%, -50%);
     }
 
@@ -64,7 +73,7 @@
     .processing-indicator {
       width: 68px;
       height: 68px;
-      border: 1px solid #111111;
+      border: 1px solid var(--page-fg);
       border-radius: 999px;
       background: transparent;
       position: fixed;
@@ -82,7 +91,7 @@
       bottom: 0;
       width: 100%;
       height: 0%;
-      background: #111111;
+      background: var(--page-fg);
       transition: height 110ms linear;
     }
 
@@ -91,7 +100,7 @@
       left: 0;
       top: 0;
       z-index: 4;
-      color: #111111;
+      color: var(--page-fg);
       font-family: "Times New Roman", Georgia, serif;
       font-size: clamp(10.5px, 1.65vw, 18px);
       letter-spacing: 0.03em;
@@ -124,30 +133,48 @@
       }
     }
 
-    #canvas {
+    @keyframes image-slide-in-left {
+      from {
+        transform: translateX(calc(-50vw - 50% - 24px));
+      }
+      to {
+        transform: translateX(0);
+      }
+    }
+
+    #media-frame {
       display: none;
-      image-rendering: pixelated;
-      position: relative;
+      position: fixed;
+      inset: 0;
+      margin: auto;
       z-index: 2;
-      max-width: 100vw;
-      max-height: 100vh;
-      width: auto;
-      height: auto;
+      max-width: none;
+      max-height: none;
+      overflow: visible;
+    }
+
+    #canvas,
+    #result-image {
+      display: none;
+      width: 100%;
+      height: 100%;
+      vertical-align: top;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      image-rendering: -webkit-optimize-contrast;
+      -ms-interpolation-mode: nearest-neighbor;
     }
 
     #result-image {
-      display: none;
-      image-rendering: pixelated;
-      position: relative;
-      z-index: 2;
-      max-width: 100vw;
-      max-height: 100vh;
-      width: auto;
-      height: auto;
+      object-fit: contain;
     }
 
-    body.has-image #canvas {
-      display: none;
+    .media-slide-in {
+      animation: image-slide-in-left 8000ms cubic-bezier(0.18, 0.82, 0.22, 1) 6000ms both;
+    }
+
+    body.has-image #media-frame {
+      display: block;
     }
 
     body.has-image #result-image {
@@ -162,16 +189,123 @@
       display: none;
     }
 
-    body.is-processing .processing-indicator {
+    body.is-loading .upload-btn {
+      display: none;
+    }
+
+    body.is-loading .processing-indicator {
       display: block;
+    }
+
+    body.is-processing #media-frame {
+      display: block;
+    }
+
+    body.is-disappearing #media-frame {
+      display: block;
+    }
+
+    body.is-finalizing #media-frame {
+      visibility: hidden;
     }
 
     body.is-processing #canvas {
       display: block;
     }
 
+    body.is-disappearing #canvas {
+      display: block;
+    }
+
     body.is-processing #result-image {
       display: none;
+    }
+
+    body.is-disappearing #result-image {
+      display: none;
+    }
+
+    body.is-disappearing .upload-btn {
+      display: none;
+    }
+
+    .settings-panel {
+      position: fixed;
+      left: 1rem;
+      bottom: 1rem;
+      z-index: 5;
+      color: var(--page-fg);
+      font-family: "Times New Roman", Georgia, serif;
+      font-size: clamp(10.5px, 1.65vw, 18px);
+      user-select: none;
+      pointer-events: auto;
+      display: none;
+      line-height: 1.25;
+    }
+
+    body.settings-open .settings-panel {
+      display: block;
+    }
+
+    .settings-group {
+      display: grid;
+      gap: 0.28rem;
+      margin-top: 0.7rem;
+    }
+
+    .settings-title {
+      margin-bottom: 0.12rem;
+      opacity: 0.7;
+    }
+
+    .settings-panel label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      cursor: pointer;
+    }
+
+    .settings-panel input {
+      width: 0.85rem;
+      height: 0.85rem;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid var(--page-fg);
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      outline: none;
+      transition: background-color 150ms ease, border-color 150ms ease;
+    }
+
+    .settings-panel input::before {
+      content: "";
+      position: absolute;
+      inset: 0.2rem;
+      border-radius: 999px;
+      background: transparent;
+      transition: background-color 150ms ease;
+    }
+
+    .settings-panel input:checked {
+      background: var(--page-fg);
+      border-color: var(--page-fg);
+    }
+
+    .settings-panel input:checked::before {
+      background: var(--page-fg);
+    }
+
+    .settings-button {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -187,12 +321,41 @@
   <div class="processing-indicator" aria-hidden="true">
     <div class="processing-fill"></div>
   </div>
-  <img id="result-image" alt="Processed result. Press and hold to save on mobile." />
-  <canvas id="canvas"></canvas>
+  <div id="media-frame">
+    <img id="result-image" alt="Processed result. Press and hold to save on mobile." />
+    <canvas id="canvas"></canvas>
+  </div>
+  <div class="settings-panel" id="settings-panel" aria-hidden="true">
+    <div class="settings-group" role="radiogroup" aria-label="Background">
+      <div class="settings-title">bg</div>
+      <label for="bg-black">
+        <input id="bg-black" type="radio" name="bg" value="black" checked />
+        black
+      </label>
+      <label for="bg-white">
+        <input id="bg-white" type="radio" name="bg" value="white" />
+        white
+      </label>
+    </div>
+    <div class="settings-group" role="radiogroup" aria-label="Orientation">
+      <div class="settings-title">orientation</div>
+      <label for="orientation-vertical">
+        <input id="orientation-vertical" type="radio" name="orientation" value="vertical" checked />
+        vertical
+      </label>
+      <label for="orientation-horizontal">
+        <input id="orientation-horizontal" type="radio" name="orientation" value="horizontal" />
+        horizontal
+      </label>
+    </div>
+    <div class="settings-group">
+      <button class="settings-button" id="restart-button" type="button">restart</button>
+    </div>
+  </div>
 
   <script>
     const MIN_DISPLACEMENT = 1;
-    const MAX_DISPLACEMENT = 20;
+    const MAX_DISPLACEMENT = 200;
     const PRE_BLUR_PX = 30;
     const MAX_UPLOAD_WIDTH = 2000;
     const MULTIPLY_CHANCE = 0.8;
@@ -212,19 +375,48 @@
     const SECONDARY_RUNNER_MAX_DELAY_MS = 14000;
     const PRIMARY_RUNNER_START_DELAY_MS = 10000;
     const SECONDARY_RUNNER_START_DELAY_MS = 20000;
+    const MIN_LOAD_DELAY_MS = 1000;
+    const MAX_LOAD_DELAY_MS = 2000;
+    const STATE_TRANSITION_MS = 130;
     const RUNNER_FRONT_Z_INDEX = 4;
     const RUNNER_BEHIND_IMAGE_Z_INDEX = 1;
     const SECONDARY_RUNNER_BEHIND_IMAGE_CHANCE = 0.5;
+    const MAX_ANIMATION_PIXELS = 1400 * 1400;
+    const ANIMATION_DURATION_MS = 20000;
+    const MIN_ANIMATION_FRAME_MS = 100;
+    const PRE_DRIFT_DELAY_MS = 19000;
+    const RESULT_HOLD_MS = 12000;
+    const RESULT_DISAPPEAR_DURATION_MS = 14000;
+    const FINAL_SPECKLE_CHANCE = 0.28;
+    const FINAL_SPECKLE_COPIES = 6;
+    const FINAL_SPECKLE_RADIUS = 5;
+    const FINAL_BLUR_PX = 0;
+    const FINAL_BLEND_ALPHA = 0.8;
+    const GRAIN_ENABLED = true;
+    const GRAIN_STEPS = 40;
+    const GRAIN_STRENGTH = 0.1;
+    const FINAL_DISPLAY_MAX_HEIGHT_RATIO = 0.9;
+    const ANIMATION_FIELD_PADDING_RATIO = 0.16;
+    const ANIMATION_FIELD_MIN_PADDING = 48;
 
     const upload = document.getElementById("upload");
+    const mediaFrame = document.getElementById("media-frame");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     const processingFill = document.querySelector(".processing-fill");
     const resultImage = document.getElementById("result-image");
+    const settingsPanel = document.getElementById("settings-panel");
+    const restartButton = document.getElementById("restart-button");
+    const bgInputs = Array.from(document.querySelectorAll('input[name="bg"]'));
+    const orientationInputs = Array.from(document.querySelectorAll('input[name="orientation"]'));
     const runnerTexts = Array.from(document.querySelectorAll(".runner-text"));
     const runnerPrimary = document.getElementById("runner-text");
     const runnerSecondary = document.getElementById("runner-text-2");
     let resultImageUrl = "";
+    let siteBackground = "black";
+    let orientationMode = "vertical";
+    let disappearTimeoutId = 0;
+    let disappearRunId = 0;
     const runnerPausedState = new WeakMap();
     const runnerTimeoutIds = new WeakMap();
 
@@ -240,8 +432,35 @@
     const previewCtx = previewCanvas.getContext("2d");
     const renderCanvas = document.createElement("canvas");
     const renderCtx = renderCanvas.getContext("2d");
+    const animationCanvas = document.createElement("canvas");
+    const animationCtx = animationCanvas.getContext("2d");
+    const animationPreviewCanvas = document.createElement("canvas");
+    const animationPreviewCtx = animationPreviewCanvas.getContext("2d");
     const exportCanvas = document.createElement("canvas");
     const exportCtx = exportCanvas.getContext("2d");
+    const destinationCanvas = document.createElement("canvas");
+    const destinationCtx = destinationCanvas.getContext("2d");
+
+    const canvasContexts = [
+      ctx,
+      sourceCtx,
+      blurCtx,
+      previewCtx,
+      renderCtx,
+      animationCtx,
+      animationPreviewCtx,
+      exportCtx,
+      destinationCtx,
+    ];
+
+    for (const context of canvasContexts) {
+      if (!context) continue;
+      context.imageSmoothingEnabled = false;
+      context.webkitImageSmoothingEnabled = false;
+      context.mozImageSmoothingEnabled = false;
+      context.msImageSmoothingEnabled = false;
+      context.imageSmoothingQuality = "low";
+    }
 
     function brightnessOf(r, g, b, a) {
       return (0.2126 * r + 0.7152 * g + 0.0722 * b) * (a / 255);
@@ -265,8 +484,38 @@
       return Math.min(max, Math.max(min, value));
     }
 
+    function displaySizeForImage(width, height, maxHeightRatio = FINAL_DISPLAY_MAX_HEIGHT_RATIO) {
+      const maxWidth = Math.max(1, window.innerWidth);
+      const maxHeight = Math.max(1, window.innerHeight * maxHeightRatio);
+      const scale = Math.min(1, maxWidth / width, maxHeight / height);
+      return {
+        width: Math.max(1, Math.round(width * scale)),
+        height: Math.max(1, Math.round(height * scale)),
+        scale,
+      };
+    }
+
+    function setMediaFrameSize(displayWidth, displayHeight) {
+      if (!mediaFrame) return;
+      mediaFrame.style.width = `${Math.max(1, Math.round(displayWidth))}px`;
+      mediaFrame.style.height = `${Math.max(1, Math.round(displayHeight))}px`;
+    }
+
+    function setCanvasDisplaySize(intrinsicWidth, intrinsicHeight, displayWidth = intrinsicWidth, displayHeight = intrinsicHeight) {
+      setMediaFrameSize(displayWidth, displayHeight);
+      canvas.width = Math.max(1, Math.round(intrinsicWidth));
+      canvas.height = Math.max(1, Math.round(intrinsicHeight));
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingQuality = "low";
+    }
+
     function nextFrame() {
       return new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     function setProcessingProgress(progress) {
@@ -275,21 +524,196 @@
       processingFill.style.height = `${clamped * 100}%`;
     }
 
+    function animateLoadingProgress(durationMs) {
+      return new Promise((resolve) => {
+        const startedAt = performance.now();
+
+        const step = (now) => {
+          const elapsed = now - startedAt;
+          const progress = clamp(elapsed / durationMs, 0, 1);
+          setProcessingProgress(progress);
+          if (progress >= 1) {
+            resolve();
+            return;
+          }
+          requestAnimationFrame(step);
+        };
+
+        requestAnimationFrame(step);
+      });
+    }
+
+    function startLoading() {
+      document.body.classList.add("is-loading");
+      setProcessingProgress(0);
+    }
+
+    function finishLoading() {
+      return new Promise((resolve) => {
+        setProcessingProgress(1);
+        setTimeout(() => {
+          document.body.classList.remove("is-loading");
+          setProcessingProgress(0);
+          resolve();
+        }, STATE_TRANSITION_MS);
+      });
+    }
+
     function startProcessing() {
       document.body.classList.add("is-processing");
-      setProcessingProgress(0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     function finishProcessing() {
-      setProcessingProgress(1);
-      setTimeout(() => {
-        document.body.classList.remove("is-processing");
-        setProcessingProgress(0);
-      }, 130);
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          document.body.classList.remove("is-processing");
+          resolve();
+        }, STATE_TRANSITION_MS);
+      });
     }
 
-    function canvasToBlobWithWhiteBackground(source, onBlob) {
+    function triggerImageSlideIn(element) {
+      if (!element) return;
+      element.classList.remove("media-slide-in");
+      // Force reflow so repeated uploads replay the entrance animation.
+      element.offsetWidth;
+      element.classList.add("media-slide-in");
+    }
+
+    function pageBackgroundColor() {
+      return siteBackground === "white" ? "#ffffff" : "#000000";
+    }
+
+    function updateSettingsPanelVisibility() {
+      if (!settingsPanel) return;
+      settingsPanel.setAttribute(
+        "aria-hidden",
+        document.body.classList.contains("settings-open") ? "false" : "true"
+      );
+    }
+
+    function setSiteBackground(value) {
+      siteBackground = value === "white" ? "white" : "black";
+      document.body.classList.toggle("bg-white", siteBackground === "white");
+      if (document.body.classList.contains("has-image") && destinationCanvas.width && destinationCanvas.height) {
+        updateResultImageFromSource(destinationCanvas);
+      }
+    }
+
+    function setOrientationMode(value) {
+      orientationMode = value === "horizontal" ? "horizontal" : "vertical";
+    }
+
+    function cancelResultDisappear() {
+      disappearRunId += 1;
+      if (disappearTimeoutId) {
+        clearTimeout(disappearTimeoutId);
+        disappearTimeoutId = 0;
+      }
+      document.body.classList.remove("is-disappearing");
+    }
+
+    function restartExperience() {
+      cancelResultDisappear();
+      if (resultImageUrl) {
+        URL.revokeObjectURL(resultImageUrl);
+        resultImageUrl = "";
+      }
+      upload.value = "";
+      resultImage.removeAttribute("src");
+      mediaFrame.classList.remove("media-slide-in");
+      setMediaFrameSize(0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.body.classList.remove(
+        "has-image",
+        "is-processing",
+        "is-loading",
+        "is-finalizing",
+        "is-disappearing",
+        "settings-open"
+      );
+      updateSettingsPanelVisibility();
+      setProcessingProgress(0);
+    }
+
+    function animateResultDisappear(displaySize, runId) {
+      if (!destinationCanvas.width || !destinationCanvas.height || runId !== disappearRunId) return;
+
+      setCanvasDisplaySize(
+        destinationCanvas.width,
+        destinationCanvas.height,
+        displaySize.width,
+        displaySize.height
+      );
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(destinationCanvas, 0, 0);
+      document.body.classList.add("is-disappearing");
+
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = frame.data;
+      const pixels = [];
+
+      for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a <= 0) continue;
+        pixels.push({
+          index: i,
+          brightness: brightnessOf(data[i], data[i + 1], data[i + 2], a),
+          saturation: saturationOf(data[i], data[i + 1], data[i + 2]),
+        });
+      }
+
+      pixels.sort((left, right) => {
+        if (left.brightness !== right.brightness) {
+          return left.brightness - right.brightness;
+        }
+        return left.saturation - right.saturation;
+      });
+
+      let erased = 0;
+      const startedAt = performance.now();
+
+      const step = (now) => {
+        if (runId !== disappearRunId) return;
+        const progress = clamp((now - startedAt) / RESULT_DISAPPEAR_DURATION_MS, 0, 1);
+        const eraseUntil = Math.floor(pixels.length * progress);
+
+        for (; erased < eraseUntil; erased += 1) {
+          data[pixels[erased].index + 3] = 0;
+        }
+
+        ctx.putImageData(frame, 0, 0);
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
+          return;
+        }
+
+        document.body.classList.remove("has-image", "is-disappearing");
+        mediaFrame.classList.remove("media-slide-in");
+        resultImage.removeAttribute("src");
+        if (resultImageUrl) {
+          URL.revokeObjectURL(resultImageUrl);
+          resultImageUrl = "";
+        }
+        setMediaFrameSize(0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      };
+
+      requestAnimationFrame(step);
+    }
+
+    function scheduleResultDisappear(displaySize) {
+      cancelResultDisappear();
+      const runId = disappearRunId;
+      disappearTimeoutId = window.setTimeout(() => {
+        disappearTimeoutId = 0;
+        animateResultDisappear(displaySize, runId);
+      }, RESULT_HOLD_MS);
+    }
+
+    function canvasToBlobWithPageBackground(source, onBlob) {
       if (!source || typeof onBlob !== "function") return;
       if (!exportCtx) {
         source.toBlob(onBlob, "image/png");
@@ -298,19 +722,36 @@
 
       exportCanvas.width = source.width;
       exportCanvas.height = source.height;
+      exportCtx.filter = "none";
       exportCtx.clearRect(0, 0, source.width, source.height);
-      exportCtx.fillStyle = "#ffffff";
+      exportCtx.fillStyle = pageBackgroundColor();
       exportCtx.fillRect(0, 0, source.width, source.height);
       exportCtx.drawImage(source, 0, 0);
       exportCanvas.toBlob(onBlob, "image/png");
     }
 
-    function updateResultImageFromCanvas() {
-      canvasToBlobWithWhiteBackground(canvas, (blob) => {
-        if (!blob || !resultImage) return;
-        if (resultImageUrl) URL.revokeObjectURL(resultImageUrl);
-        resultImageUrl = URL.createObjectURL(blob);
-        resultImage.src = resultImageUrl;
+    async function updateResultImageFromSource(source) {
+      return new Promise((resolve) => {
+        canvasToBlobWithPageBackground(source, (blob) => {
+          if (!blob || !resultImage) {
+            resolve(false);
+            return;
+          }
+          if (resultImageUrl) URL.revokeObjectURL(resultImageUrl);
+          resultImageUrl = URL.createObjectURL(blob);
+          resultImage.onload = async () => {
+            try {
+              if (typeof resultImage.decode === "function") {
+                await resultImage.decode();
+              }
+            } catch (error) {
+              // Some browsers reject decode() for images that are already usable.
+            }
+            resolve(true);
+          };
+          resultImage.onerror = () => resolve(false);
+          resultImage.src = resultImageUrl;
+        });
       });
     }
 
@@ -413,32 +854,135 @@
       scheduleRunnerLoop(runnerSecondary, SECONDARY_RUNNER_START_DELAY_MS);
     }
 
-    function buildSortedPixels(data, width, height) {
+    function easeOutQuad(value) {
+      return 1 - (1 - value) * (1 - value);
+    }
+
+    function easeInOutQuint(value) {
+      return value < 0.5
+        ? 16 * Math.pow(value, 5)
+        : 1 - Math.pow(-2 * value + 2, 5) / 2;
+    }
+
+    function buildPixelMapping(
+      data,
+      width,
+      height,
+      targetWidth = width,
+      targetOffsetX = 0,
+      targetOffsetY = 0,
+      targetHeight = height
+    ) {
       const pixelCount = width * height;
-      const pixels = new Array(pixelCount);
+      const coloredPixels = [];
+
       for (let i = 0, p = 0; p < pixelCount; i += 4, p += 1) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
         const a = data[i + 3];
-        pixels[p] = [r, g, b, a, brightnessOf(r, g, b, a), saturationOf(r, g, b)];
-      }
+        const x = p % width;
+        const y = Math.floor(p / width);
 
-      // First pass: light pixels to top rows, dark pixels to bottom rows.
-      pixels.sort((left, right) => right[4] - left[4]);
-
-      // Second pass within each brightness row: low saturation left, high saturation right.
-      for (let y = 0; y < height; y += 1) {
-        const rowStart = y * width;
-        const rowEnd = rowStart + width;
-        const row = pixels.slice(rowStart, rowEnd);
-        row.sort((left, right) => left[5] - right[5]);
-        for (let x = 0; x < width; x += 1) {
-          pixels[rowStart + x] = row[x];
+        if (a > 0) {
+          coloredPixels.push({
+            sx: x,
+            sy: y,
+            r,
+            g,
+            b,
+            a,
+            brightness: brightnessOf(r, g, b, a),
+            saturation: saturationOf(r, g, b),
+          });
         }
       }
 
-      return pixels;
+      if (orientationMode === "horizontal") {
+        coloredPixels.sort((left, right) => {
+          if (right.brightness !== left.brightness) {
+            return right.brightness - left.brightness;
+          }
+          return left.saturation - right.saturation;
+        });
+
+        for (let columnStart = 0; columnStart < coloredPixels.length; columnStart += targetHeight) {
+          const columnEnd = Math.min(columnStart + targetHeight, coloredPixels.length);
+          const column = coloredPixels.slice(columnStart, columnEnd);
+          column.sort((left, right) => left.saturation - right.saturation);
+          for (let i = columnStart; i < columnEnd; i += 1) {
+            coloredPixels[i] = column[i - columnStart];
+          }
+        }
+
+        for (let i = 0; i < coloredPixels.length; i += 1) {
+          coloredPixels[i].tx = targetOffsetX + Math.floor(i / targetHeight);
+          coloredPixels[i].ty = targetOffsetY + (i % targetHeight);
+        }
+
+        return coloredPixels;
+      }
+
+      coloredPixels.sort((left, right) => {
+        if (right.brightness !== left.brightness) {
+          return right.brightness - left.brightness;
+        }
+        return left.saturation - right.saturation;
+      });
+
+      for (let rowStart = 0; rowStart < coloredPixels.length; rowStart += width) {
+        const rowEnd = Math.min(rowStart + width, coloredPixels.length);
+        const row = coloredPixels.slice(rowStart, rowEnd);
+        row.sort((left, right) => left.saturation - right.saturation);
+        for (let i = rowStart; i < rowEnd; i += 1) {
+          coloredPixels[i] = row[i - rowStart];
+        }
+      }
+
+      for (let i = 0; i < coloredPixels.length; i += 1) {
+        coloredPixels[i].tx = targetOffsetX + (i % targetWidth);
+        coloredPixels[i].ty = targetOffsetY + Math.floor(i / targetWidth);
+      }
+
+      return coloredPixels;
+    }
+
+    function softenCanvasContext(targetCtx, width, height) {
+      if (!exportCtx || width <= 1 || height <= 1) return;
+      exportCanvas.width = width;
+      exportCanvas.height = height;
+      exportCtx.clearRect(0, 0, width, height);
+      exportCtx.filter = `blur(${FINAL_BLUR_PX}px)`;
+      exportCtx.drawImage(targetCtx.canvas, 0, 0, width, height);
+      exportCtx.filter = "none";
+
+      targetCtx.clearRect(0, 0, width, height);
+      targetCtx.drawImage(exportCanvas, 0, 0, width, height);
+      targetCtx.globalAlpha = FINAL_BLEND_ALPHA;
+      for (let i = 0; i < 12; i += 1) {
+        const dx = randomInt(-2, 2);
+        const dy = randomInt(-6, 6);
+        targetCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      targetCtx.globalAlpha = FINAL_BLEND_ALPHA * 0.85;
+      for (let i = 0; i < 10; i += 1) {
+        const dx = randomInt(-1, 1);
+        const dy = randomInt(-10, 10);
+        targetCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      targetCtx.globalAlpha = FINAL_BLEND_ALPHA * 0.5;
+      for (let i = 0; i < 6; i += 1) {
+        const dx = randomInt(-3, 3);
+        const dy = randomInt(-12, 12);
+        targetCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      targetCtx.globalAlpha = FINAL_BLEND_ALPHA * 0.3;
+      for (let i = 0; i < 8; i += 1) {
+        const dx = 0;
+        const dy = randomInt(-18, 18);
+        targetCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      targetCtx.globalAlpha = 1;
     }
 
     function saveCanvasImage() {
@@ -447,7 +991,7 @@
       const link = document.createElement("a");
       link.download = `v6-${Date.now()}.png`;
 
-      canvasToBlobWithWhiteBackground(canvas, (blob) => {
+      canvasToBlobWithPageBackground(canvas, (blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         link.href = url;
@@ -468,6 +1012,8 @@
     }
 
     function drawLiveComposite(width, height) {
+      ctx.filter = "none";
+      ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, width, height);
 
       ctx.globalAlpha = 1;
@@ -475,12 +1021,110 @@
       ctx.drawImage(renderCanvas, 0, 0, width, height);
     }
 
+    function drawLiveAnimation(width, height) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.filter = "none";
+      ctx.imageSmoothingEnabled = false;
+      ctx.webkitImageSmoothingEnabled = false;
+      ctx.mozImageSmoothingEnabled = false;
+      ctx.msImageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.globalAlpha = 1;
+      ctx.drawImage(animationCanvas, 0, 0, width, height);
+    }
+
     function drawFinalComposite(width, height) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.filter = "none";
+      ctx.imageSmoothingEnabled = false;
+      ctx.webkitImageSmoothingEnabled = false;
+      ctx.mozImageSmoothingEnabled = false;
+      ctx.msImageSmoothingEnabled = false;
       ctx.clearRect(0, 0, width, height);
       ctx.globalAlpha = 1;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(renderCanvas, 0, 0, width, height);
+      ctx.drawImage(destinationCanvas, 0, 0, width, height);
+    }
+
+    function softenRenderCanvas(width, height) {
+      if (!exportCtx || width <= 1 || height <= 1) return;
+      exportCanvas.width = width;
+      exportCanvas.height = height;
+      exportCtx.clearRect(0, 0, width, height);
+      exportCtx.filter = `blur(${FINAL_BLUR_PX}px)`;
+      exportCtx.drawImage(renderCanvas, 0, 0, width, height);
+      exportCtx.filter = "none";
+
+      renderCtx.clearRect(0, 0, width, height);
+      renderCtx.drawImage(exportCanvas, 0, 0, width, height);
+      renderCtx.globalAlpha = FINAL_BLEND_ALPHA;
+      for (let i = 0; i < 12; i += 1) {
+        const dx = randomInt(-2, 2);
+        const dy = randomInt(-6, 6);
+        renderCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      renderCtx.globalAlpha = FINAL_BLEND_ALPHA * 0.85;
+      for (let i = 0; i < 10; i += 1) {
+        const dx = randomInt(-1, 1);
+        const dy = randomInt(-10, 10);
+        renderCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      renderCtx.globalAlpha = FINAL_BLEND_ALPHA * 0.5;
+      for (let i = 0; i < 6; i += 1) {
+        const dx = randomInt(-3, 3);
+        const dy = randomInt(-12, 12);
+        renderCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      renderCtx.globalAlpha = FINAL_BLEND_ALPHA * 0.3;
+      for (let i = 0; i < 8; i += 1) {
+        const dx = 0;
+        const dy = randomInt(-18, 18);
+        renderCtx.drawImage(exportCanvas, dx, dy, width, height);
+      }
+      renderCtx.globalAlpha = 1;
+    }
+
+    function applyGradientorGrain(canvas, steps = GRAIN_STEPS) {
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx || steps <= 0) return;
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      function hash(x, y, c, i) {
+        const n = Math.sin(
+          x * 12.9898 +
+          y * 78.233 +
+          c * 37.719 +
+          i * 1000.0
+        ) * 43758.5453;
+        return n - Math.floor(n);
+      }
+
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const idx = (y * width + x) * 4;
+
+          for (let c = 0; c < 3; c += 1) {
+            const t = data[idx + c] / 255;
+            let sum = 0;
+
+            for (let i = 0; i < steps; i += 1) {
+              sum += t > hash(x, y, c, i) ? 1 : 0;
+            }
+
+            const quantized = Math.round((sum / steps) * 255);
+            const original = data[idx + c];
+            data[idx + c] = Math.round(
+              original * (1 - GRAIN_STRENGTH) + quantized * GRAIN_STRENGTH
+            );
+          }
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
     }
 
     function drawPixel(targetCtx, x, y, r, g, b, alpha) {
@@ -489,94 +1133,120 @@
       targetCtx.fillRect(x, y, 1, 1);
     }
 
-    async function renderDisplacedPixels(sortedPixels, width, height, onProgress = () => {}) {
-      const pixelCount = width * height;
-      renderCtx.clearRect(0, 0, width, height);
-      drawLiveComposite(width, height);
-
-      const chunkSize = Math.max(3500, Math.floor(pixelCount / 120));
+    async function animatePixelDrift(pixelMap, width, height, onProgress = () => {}) {
+      animationCanvas.width = width;
+      animationCanvas.height = height;
+      const frame = animationCtx.createImageData(width, height);
+      const pixels = frame.data;
+      const startTime = performance.now();
       onProgress(0);
 
-      for (let start = 0; start < pixelCount; start += chunkSize) {
-        const end = Math.min(start + chunkSize, pixelCount);
+      return new Promise((resolve) => {
+        const step = (now) => {
+          const elapsed = now - startTime;
+          const progress = clamp(elapsed / ANIMATION_DURATION_MS, 0, 1);
 
-        for (let p = start; p < end; p += 1) {
-          const px = sortedPixels[p];
-          const baseAlpha = px[3] / 255;
-          if (baseAlpha <= 0) continue;
+          pixels.fill(0);
 
-          const baseX = p % width;
-          const baseY = Math.floor(p / width);
-          const angle = Math.random() * Math.PI * 2;
-          const distance = MIN_DISPLACEMENT + Math.random() * (MAX_DISPLACEMENT - MIN_DISPLACEMENT);
-          const centerX = clamp(Math.round(baseX + Math.cos(angle) * distance), 0, width - 1);
-          const centerY = clamp(Math.round(baseY + Math.sin(angle) * distance), 0, height - 1);
+          const eased = easeInOutQuint(progress);
 
-          drawPixel(renderCtx, centerX, centerY, px[0], px[1], px[2], baseAlpha);
+          for (const pixel of pixelMap) {
+            if (pixel.a <= 0) continue;
+            const x = clamp(Math.round(pixel.sx + (pixel.tx - pixel.sx) * eased), 0, width - 1);
+            const y = clamp(Math.round(pixel.sy + (pixel.ty - pixel.sy) * eased), 0, height - 1);
+            const index = (y * width + x) * 4;
+            pixels[index] = pixel.r;
+            pixels[index + 1] = pixel.g;
+            pixels[index + 2] = pixel.b;
+            pixels[index + 3] = pixel.a;
+          }
 
-          const shouldMultiply = Math.random() < MULTIPLY_CHANCE;
-          if (!shouldMultiply) continue;
+          animationCtx.putImageData(frame, 0, 0);
+          drawLiveAnimation(canvas.width, canvas.height);
+          onProgress(progress);
 
-          const copies = randomInt(MIN_COPIES, MAX_COPIES);
+          if (progress >= 1) {
+            resolve();
+            return;
+          }
 
+          const nextDelay = now - (step.lastFrame || 0);
+          step.lastFrame = now;
+          const nextFrameDelay = Math.max(MIN_ANIMATION_FRAME_MS, MIN_ANIMATION_FRAME_MS - nextDelay);
+          setTimeout(() => requestAnimationFrame(step), nextFrameDelay);
+        };
+
+        requestAnimationFrame(step);
+      });
+    }
+
+    async function renderFinalDestination(data, width, height, targetCtx) {
+      targetCtx.canvas.width = width;
+      targetCtx.canvas.height = height;
+      const pixelMap = buildPixelMapping(data, width, height);
+      const frame = targetCtx.createImageData(width, height);
+      const pixels = frame.data;
+      pixels.fill(0);
+
+      for (const pixel of pixelMap) {
+        if (pixel.a <= 0) continue;
+        const index = (pixel.ty * width + pixel.tx) * 4;
+        pixels[index] = pixel.r;
+        pixels[index + 1] = pixel.g;
+        pixels[index + 2] = pixel.b;
+        pixels[index + 3] = pixel.a;
+
+        if (Math.random() < FINAL_SPECKLE_CHANCE) {
+          const copies = randomInt(2, FINAL_SPECKLE_COPIES);
           for (let i = 0; i < copies; i += 1) {
             const [jx, jy] = jitterPoint(
-              centerX,
-              centerY,
-              CORE_RADIUS_MIN,
-              CORE_RADIUS_MAX,
-              MAX_CLUSTER_HALF_HEIGHT,
+              pixel.tx,
+              pixel.ty,
+              1,
+              FINAL_SPECKLE_RADIUS,
+              FINAL_SPECKLE_RADIUS,
               width,
               height
             );
-            drawPixel(renderCtx, jx, jy, px[0], px[1], px[2], baseAlpha);
-          }
-
-          const edgeCopies = Math.max(1, Math.round(copies * (0.6 + Math.random() * 0.8)));
-          for (let i = 0; i < edgeCopies; i += 1) {
-            const [jx, jy] = jitterPoint(
-              centerX,
-              centerY,
-              EDGE_RADIUS_MIN,
-              EDGE_RADIUS_MAX,
-              MAX_CLUSTER_HALF_HEIGHT,
-              width,
-              height
-            );
-            const edgeAlpha = baseAlpha * (0.18 + Math.random() * 0.35);
-            drawPixel(renderCtx, jx, jy, px[0], px[1], px[2], edgeAlpha);
+            const jIndex = (jy * width + jx) * 4;
+            pixels[jIndex] = pixel.r;
+            pixels[jIndex + 1] = pixel.g;
+            pixels[jIndex + 2] = pixel.b;
+            pixels[jIndex + 3] = Math.max(pixels[jIndex + 3], Math.round(pixel.a * 0.38));
           }
         }
-
-        const renderProgress = end / pixelCount;
-        drawLiveComposite(width, height);
-        onProgress(renderProgress);
-        if (end < pixelCount) await nextFrame();
       }
 
-      drawFinalComposite(width, height);
+      targetCtx.putImageData(frame, 0, 0);
+      softenCanvasContext(targetCtx, width, height);
+      return pixelMap;
     }
 
     upload.addEventListener("change", () => {
       const file = upload.files?.[0];
       if (!file) return;
 
-      startProcessing();
+      cancelResultDisappear();
+      startLoading();
+      const loadDelayMs = randomInt(MIN_LOAD_DELAY_MS, MAX_LOAD_DELAY_MS);
+      const loadingProgressPromise = animateLoadingProgress(loadDelayMs);
       const imageUrl = URL.createObjectURL(file);
       const img = new Image();
 
       img.onload = async () => {
+        let hasResultImage = false;
+        let finalResultDisplaySize = null;
         try {
-          setProcessingProgress(0.1);
+          await loadingProgressPromise;
+          await finishLoading();
 
           const sourceWidth = img.naturalWidth;
           const sourceHeight = img.naturalHeight;
           const scale = sourceWidth > MAX_UPLOAD_WIDTH ? MAX_UPLOAD_WIDTH / sourceWidth : 1;
           const width = Math.max(1, Math.round(sourceWidth * scale));
           const height = Math.max(1, Math.round(sourceHeight * scale));
+          const finalDisplaySize = displaySizeForImage(width, height);
 
-          canvas.width = width;
-          canvas.height = height;
           sourceCanvas.width = width;
           sourceCanvas.height = height;
           blurCanvas.width = width;
@@ -586,53 +1256,143 @@
           renderCanvas.width = width;
           renderCanvas.height = height;
 
+          previewCtx.filter = "none";
           previewCtx.clearRect(0, 0, width, height);
           previewCtx.drawImage(img, 0, 0, width, height);
+          renderCtx.filter = "none";
           renderCtx.clearRect(0, 0, width, height);
-          drawLiveComposite(width, height);
-          setProcessingProgress(0.2);
 
           blurCtx.clearRect(0, 0, width, height);
           blurCtx.filter = `blur(${PRE_BLUR_PX}px)`;
           blurCtx.drawImage(img, 0, 0, width, height);
           blurCtx.filter = "none";
-          setProcessingProgress(0.3);
 
           sourceCtx.clearRect(0, 0, width, height);
           sourceCtx.drawImage(blurCanvas, 0, 0, width, height);
 
           const imageData = sourceCtx.getImageData(0, 0, width, height);
-          setProcessingProgress(0.45);
 
-          const sortedPixels = buildSortedPixels(imageData.data, width, height);
-          setProcessingProgress(0.5);
+          const animationScale = Math.min(1, Math.sqrt(MAX_ANIMATION_PIXELS / (width * height)));
+          const animationWidth = Math.max(1, Math.round(width * animationScale));
+          const animationHeight = Math.max(1, Math.round(height * animationScale));
+          const animationPadding = Math.max(
+            ANIMATION_FIELD_MIN_PADDING,
+            Math.round(Math.max(animationWidth, animationHeight) * ANIMATION_FIELD_PADDING_RATIO)
+          );
+          const animationFieldWidth = animationWidth + animationPadding * 2;
+          const animationFieldHeight = animationHeight + animationPadding * 2;
+          const animationDisplayScale = finalDisplaySize.width / width / animationScale;
+          const animationDisplayWidth = animationFieldWidth * animationDisplayScale;
+          const animationDisplayHeight = animationFieldHeight * animationDisplayScale;
 
-          await renderDisplacedPixels(sortedPixels, width, height, (renderProgress) => {
-            setProcessingProgress(0.5 + renderProgress * 0.5);
-          });
+          animationCanvas.width = animationFieldWidth;
+          animationCanvas.height = animationFieldHeight;
+          animationPreviewCanvas.width = animationFieldWidth;
+          animationPreviewCanvas.height = animationFieldHeight;
 
-          updateResultImageFromCanvas();
-          document.body.classList.add("has-image");
+          animationCtx.filter = "none";
+          animationCtx.clearRect(0, 0, animationFieldWidth, animationFieldHeight);
+          animationCtx.drawImage(blurCanvas, animationPadding, animationPadding, animationWidth, animationHeight);
+          const animationData = animationCtx.getImageData(0, 0, animationFieldWidth, animationFieldHeight);
+
+          animationPreviewCtx.filter = "none";
+          animationPreviewCtx.clearRect(0, 0, animationFieldWidth, animationFieldHeight);
+          animationPreviewCtx.drawImage(img, animationPadding, animationPadding, animationWidth, animationHeight);
+
+          await renderFinalDestination(imageData.data, width, height, destinationCtx);
+
+          const pixelMap = buildPixelMapping(
+            animationData.data,
+            animationFieldWidth,
+            animationFieldHeight,
+            animationWidth,
+            animationPadding,
+            animationPadding,
+            animationHeight
+          );
+          setCanvasDisplaySize(
+            animationFieldWidth,
+            animationFieldHeight,
+            animationDisplayWidth,
+            animationDisplayHeight
+          );
+          startProcessing();
+          drawLiveAnimation(animationFieldWidth, animationFieldHeight);
+          triggerImageSlideIn(mediaFrame);
+          await wait(PRE_DRIFT_DELAY_MS);
+          await animatePixelDrift(pixelMap, animationFieldWidth, animationFieldHeight);
+
+          if (GRAIN_ENABLED) {
+            applyGradientorGrain(destinationCanvas, GRAIN_STEPS);
+          }
+
+          document.body.classList.add("is-finalizing");
+          setMediaFrameSize(finalDisplaySize.width, finalDisplaySize.height);
+          hasResultImage = await updateResultImageFromSource(destinationCanvas);
+          finalResultDisplaySize = finalDisplaySize;
           upload.value = "";
         } finally {
-          finishProcessing();
+          await finishProcessing();
+          if (hasResultImage) {
+            document.body.classList.add("has-image");
+            if (finalResultDisplaySize) {
+              scheduleResultDisappear(finalResultDisplaySize);
+            }
+          }
+          document.body.classList.remove("is-finalizing");
           URL.revokeObjectURL(imageUrl);
         }
       };
 
-      img.onerror = () => {
-        finishProcessing();
+      img.onerror = async () => {
+        await loadingProgressPromise;
+        await finishLoading();
         URL.revokeObjectURL(imageUrl);
       };
 
       img.src = imageUrl;
     });
 
+    for (const input of bgInputs) {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          setSiteBackground(input.value);
+        }
+      });
+    }
+
+    for (const input of orientationInputs) {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          setOrientationMode(input.value);
+        }
+      });
+    }
+
+    restartButton?.addEventListener("click", restartExperience);
+
     document.addEventListener("keydown", (event) => {
       if (event.repeat) return;
-      if (event.key.toLowerCase() !== "s") return;
-      event.preventDefault();
-      saveCanvasImage();
+      const key = event.key.toLowerCase();
+
+      if (key === "o") {
+        event.preventDefault();
+        document.body.classList.toggle("settings-open");
+        updateSettingsPanelVisibility();
+        return;
+      }
+
+      if (key === "escape" && document.body.classList.contains("settings-open")) {
+        event.preventDefault();
+        document.body.classList.remove("settings-open");
+        updateSettingsPanelVisibility();
+        return;
+      }
+
+      if (key === "s") {
+        event.preventDefault();
+        saveCanvasImage();
+      }
     });
 
     window.addEventListener("beforeunload", () => {
